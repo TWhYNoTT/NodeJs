@@ -29,7 +29,6 @@ app.use(express.urlencoded({ extended: true }));
 
 
 
-
 //Mount routs
 app.use("/api/register", registerRouter);
 app.use("/api/login", authRouter);

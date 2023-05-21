@@ -5,6 +5,9 @@ const router = express.Router();
 const { Post } = require("../models/PostModel");
 const postValidator = require("../middlewares/PostMWValidator");
 const authenticateToken = require("../middlewares/AuthenticateToken");
+const upload = require("../middlewares/multerMW");
+
+
 
 router.get("/", async (req, res, nxt) => {
     try {
@@ -24,73 +27,103 @@ router.get("/", async (req, res, nxt) => {
 
 router.use(authenticateToken);
 
+
+
 router.delete("/:id", postIdValidator, async (req, res, nxt) => {
     try {
+        let post = await Post.findOneAndRemove({ _id: req.params.id, email: req.email });
 
-        let post = await Post.findOneAndRemove({ _id: req.params.id, email: req.email })
-
-        if (!post)
-            res.status(400).send({ message: "Bad Request..." })
-        else
-            res.status(200).send({ message: "Deleted successfully..." })
-
-    }
-    catch (err) {
-        nxt(err.message)
+        if (!post) {
+            res.status(400).send({ message: "Bad Request..." });
+        } else {
+            // Delete the associated image file (if there is one)
+            if (post.imagePath) {
+                fs.unlink(post.imagePath, (err) => {
+                    if (err) {
+                        console.log(`Error deleting image file: ${err}`);
+                    }
+                });
+            }
+            res.status(200).send({ message: "Deleted successfully..." });
+        }
+    } catch (err) {
+        nxt(err.message);
     }
 });
 
+// Validate post body and header for create and update
+router.use("/", postValidator);
 
-// validate post body and header for create and update
-router.use("/", postValidator)
-
-router.post("/", async (req, res, nxt) => {
+// Create a new post with an image attached
+router.post("/", upload.single('image'), async (req, res, nxt) => {
     try {
+
         // Create new post to be added to DB
         let post = new Post({
             header: req.body.header,
             body: req.body.body,
-            fullname: req.fullname, // this information come from AuthenticateToken middleware
-            email: req.email // this information come from AuthenticateToken middleware
+            fullname: req.fullname,
+            email: req.email,
+            imagePath: req.image ? req.image.path : null
         });
         await post.save();
-        res.status(200).send({ message: "Posted successfully..." })
-    }
-    catch (err) {
-        nxt(err.message)
+        res.status(200).send({ message: "Posted successfully..." });
+    } catch (err) {
+        if (req.image) {
+            fs.unlink(req.image.path, (err) => {
+                if (err) {
+                    console.log(`Error deleting uploaded image file: ${err}`);
+                }
+            });
+        }
+        nxt(err.message);
     }
 });
 
-router.put("/:id", postIdValidator, async (req, res, nxt) => {
+
+router.put("/:id", postIdValidator, upload.single('image'), async (req, res, nxt) => {
     try {
+        let post = await Post.findOne({ _id: req.params.id, email: req.email });
 
-        let post = await Post.findOneAndUpdate({ _id: req.params.id, email: req.email }, {
-            $set: {
-                header: req.body.header,
-                body: req.body.body
-            }
-        })
-        if (!post)
-            res.status(400).send({ message: "Bad Request..." })
-        else
-            res.status(200).send({ message: "Updated successfully..." })
+        // Delete the old image file (if there is one)
+        if (post.imagePath && req.image) {
+            fs.unlink(post.imagePath, (err) => {
+                if (err) {
+                    console.log(`Error deleting old image file: ${err}`);
+                }
+            });
+        }
 
-    }
-    catch (err) {
-        nxt(err.message)
+        // Update the post data with the new values
+        post.header = req.body.header;
+        post.body = req.body.body;
+        post.imagePath = req.image ? req.image.path : post.imagePath;
+
+        // Save the updated post to the database
+        await post.save();
+
+        res.status(200).send({ message: "Updated successfully..." });
+    } catch (err) {
+        if (req.image) {
+            fs.unlink(req.image.path, (err) => {
+                if (err) {
+                    console.log(`Error deleting uploaded image file: ${err}`);
+                }
+            });
+        }
+        nxt(err.message);
     }
 });
+
 
 
 
 function postIdValidator(req, res, nxt) {
-
-    if (ObjectId.isValid(req.params.id))
-
-        nxt()
-    else res.status(400).send({ message: "Invalid post id...." })
+    if (ObjectId.isValid(req.params.id)) {
+        nxt();
+    } else {
+        res.status(400).send({ message: "Invalid post id...." });
+    }
 }
-
-
 
 module.exports = router;

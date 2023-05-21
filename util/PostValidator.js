@@ -11,6 +11,10 @@ const schema = {
         "body": {
             "type": "string",
             "minLength": 1
+        },
+        "image": {
+            "type": "string",
+
         }
 
     },

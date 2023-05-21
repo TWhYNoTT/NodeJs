@@ -18,6 +18,9 @@ const postSchema = mongoose.Schema({
     email: {
         type: String
     },
+    imagePath: {
+        type: String
+    },
     creationDate: {
         type: Date,
         default: Date.now,
@@ -26,9 +29,6 @@ const postSchema = mongoose.Schema({
         type: Date,
         default: Date.now,
     },
-
-
-
 });
 
 exports.Post = mongoose.model("Post", postSchema);
