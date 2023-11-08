@@ -1,5 +1,3 @@
-# Abdelrahman Mostafa 
-
 # [Node.js Blog Post API]
 
 [This is a Node.js API server for a blog post app that uses Express.js and MongoDB. This guide provides instructions on how to run the server on your local machine.]
